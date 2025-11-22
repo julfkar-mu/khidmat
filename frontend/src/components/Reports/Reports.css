@@ -1,0 +1,79 @@
+.balance-card {
+  background: linear-gradient(120deg, #eef2ff 0%, #f8fafc 100%);
+  color: #1f2937;
+  border: 1px solid #e0e7ff;
+  box-shadow: 0 12px 25px rgba(88, 102, 240, 0.15);
+}
+
+.balance-card h2 {
+  color: #1f2937;
+  margin-bottom: 12px;
+}
+
+.wallet-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.wallet-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e0e7ff;
+  font-size: 24px;
+  color: #4c1d95;
+}
+
+.wallet-subtitle {
+  margin: 0 0 20px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.balance-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.stat-item {
+  text-align: center;
+  background: white;
+  border-radius: 12px;
+  padding: 20px 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.stat-item label {
+  display: block;
+  font-size: 14px;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stat-value.balance {
+  font-size: 32px;
+  color: #16a34a;
+}
+
+@media (max-width: 768px) {
+  .balance-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
