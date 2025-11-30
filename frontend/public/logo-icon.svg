@@ -1,0 +1,35 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconGreenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#16a34a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#15803d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGoldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle with green gradient -->
+  <circle cx="24" cy="24" r="22" fill="url(#iconGreenGradient)" filter="url(#shadow)"/>
+  
+  <!-- Crescent moon (Islamic symbol) -->
+  <path d="M 24 12 Q 30 18 30 24 Q 30 30 24 36 Q 18 30 18 24 Q 18 18 24 12 Z" 
+        fill="url(#iconGoldGradient)" opacity="0.95"/>
+  <circle cx="21" cy="21" r="9" fill="url(#iconGreenGradient)"/>
+  
+  <!-- Star (representing guidance/blessing) -->
+  <path d="M 24 9 L 25.5 15 L 31.5 15 L 27 18.75 L 28.5 24.75 L 24 21 L 19.5 24.75 L 21 18.75 L 16.5 15 L 22.5 15 Z" 
+        fill="url(#iconGoldGradient)" opacity="0.9"/>
+  
+  <!-- Small decorative dots -->
+  <circle cx="12" cy="12" r="1.5" fill="url(#iconGoldGradient)" opacity="0.7"/>
+  <circle cx="36" cy="12" r="1.5" fill="url(#iconGoldGradient)" opacity="0.7"/>
+  <circle cx="12" cy="36" r="1.5" fill="url(#iconGoldGradient)" opacity="0.7"/>
+  <circle cx="36" cy="36" r="1.5" fill="url(#iconGoldGradient)" opacity="0.7"/>
+</svg>

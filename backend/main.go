@@ -57,6 +57,8 @@ func main() {
 
 	// Report routes
 	api.HandleFunc("/reports/admin-payments", h.GetAdminPaymentsReport).Methods("GET", "OPTIONS")
+	api.HandleFunc("/reports/paid-members", h.GetPaidMembersReport).Methods("GET", "OPTIONS")
+	api.HandleFunc("/reports/unpaid-members", h.GetUnpaidMembersReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/monthly-collection", h.GetMonthlyCollection).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/monthly-collection-details", h.GetMonthlyCollectionDetails).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/monthly-donations", h.GetMonthlyDonations).Methods("GET", "OPTIONS")

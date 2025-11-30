@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -28,7 +29,8 @@ func (h *Handlers) CreateDonation(w http.ResponseWriter, r *http.Request) {
 	).Scan(&donationID)
 
 	if err != nil {
-		sendJSONError(w, "Failed to create donation: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error creating donation: %v", err)
+		sendJSONError(w, "Failed to create donation. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
@@ -49,7 +51,8 @@ func (h *Handlers) GetDonations(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.DB.Query(query)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch donations", http.StatusInternalServerError)
+		log.Printf("Error fetching donations: %v", err)
+		sendJSONError(w, "Failed to fetch donations. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()

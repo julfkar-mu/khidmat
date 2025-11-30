@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -29,7 +30,8 @@ func (h *Handlers) CreateMember(w http.ResponseWriter, r *http.Request) {
 	).Scan(&memberID)
 
 	if err != nil {
-		sendJSONError(w, "Failed to create member: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error creating member: %v", err)
+		sendJSONError(w, "Failed to create member. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
@@ -49,7 +51,8 @@ func (h *Handlers) GetMembers(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.DB.Query(query)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch members", http.StatusInternalServerError)
+		log.Printf("Error fetching members: %v", err)
+		sendJSONError(w, "Failed to fetch members. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -80,13 +83,15 @@ func (h *Handlers) ToggleMemberStatus(w http.ResponseWriter, r *http.Request) {
 	var isActive bool
 	err = h.DB.QueryRow("SELECT is_active FROM members WHERE id = $1", memberID).Scan(&isActive)
 	if err != nil {
+		log.Printf("Error fetching member for status toggle: %v", err)
 		sendJSONError(w, "Member not found", http.StatusNotFound)
 		return
 	}
 
 	_, err = h.DB.Exec("UPDATE members SET is_active = $1 WHERE id = $2", !isActive, memberID)
 	if err != nil {
-		sendJSONError(w, "Failed to update member status", http.StatusInternalServerError)
+		log.Printf("Error updating member status: %v", err)
+		sendJSONError(w, "Failed to update member status. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 

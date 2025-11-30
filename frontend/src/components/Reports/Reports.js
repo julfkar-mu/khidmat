@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import Layout from '../Layout/Layout';
@@ -8,7 +8,8 @@ import autoTable from 'jspdf-autotable';
 import './Reports.css';
 
 const Reports = () => {
-  const [adminPayments, setAdminPayments] = useState([]);
+  const [paidMembers, setPaidMembers] = useState([]);
+  const [unpaidMembers, setUnpaidMembers] = useState([]);
   const [monthlyCollection, setMonthlyCollection] = useState([]);
   const [monthlyDonations, setMonthlyDonations] = useState([]);
   const [poolBalance, setPoolBalance] = useState(null);
@@ -20,51 +21,15 @@ const Reports = () => {
   const [selectedDonationMonth, setSelectedDonationMonth] = useState('');
   const [filterText, setFilterText] = useState('');
   const [donationFilterText, setDonationFilterText] = useState('');
+  const [paidFilterText, setPaidFilterText] = useState('');
+  const [unpaidFilterText, setUnpaidFilterText] = useState('');
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [donationDetailsLoading, setDonationDetailsLoading] = useState(false);
+  const [paidMembersLoading, setPaidMembersLoading] = useState(false);
+  const [unpaidMembersLoading, setUnpaidMembersLoading] = useState(false);
 
-  useEffect(() => {
-    fetchReports();
-    fetchMonthlyCollectionDetails();
-    fetchMonthlyDonationDetails();
-  }, []);
-
-  useEffect(() => {
-    fetchMonthlyCollectionDetails(selectedMonth || '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth]);
-
-  useEffect(() => {
-    fetchMonthlyDonationDetails(selectedDonationMonth || '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDonationMonth]);
-
-  const fetchReports = async () => {
-    try {
-      const [adminPaymentsRes, monthlyCollectionRes, monthlyDonationsRes, poolBalanceRes] = await Promise.all([
-        api.get('/reports/admin-payments'),
-        api.get('/reports/monthly-collection'),
-        api.get('/reports/monthly-donations'),
-        api.get('/reports/pool-balance'),
-      ]);
-
-      setAdminPayments(adminPaymentsRes.data || []);
-      setMonthlyCollection(monthlyCollectionRes.data || []);
-      setMonthlyDonations(monthlyDonationsRes.data || []);
-      setPoolBalance(poolBalanceRes.data);
-    } catch (error) {
-      toast.error('Failed to fetch reports');
-      // Ensure arrays are set to empty arrays even on error
-      setAdminPayments([]);
-      setMonthlyCollection([]);
-      setMonthlyDonations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMonthlyCollectionDetails = async (month = '') => {
+  const fetchMonthlyCollectionDetails = useCallback(async (month = '') => {
     setDetailsLoading(true);
     try {
       const url = month 
@@ -73,9 +38,7 @@ const Reports = () => {
       const response = await api.get(url);
       setMonthlyCollectionDetails(response.data.details || []);
       setMonthlyCollectionTotal(response.data.total || 0);
-      if (!selectedMonth && response.data.month) {
-        setSelectedMonth(response.data.month);
-      }
+      setSelectedMonth((prev) => (!prev && response.data.month ? response.data.month : prev));
     } catch (error) {
       toast.error('Failed to fetch monthly collection details');
       setMonthlyCollectionDetails([]);
@@ -83,9 +46,9 @@ const Reports = () => {
     } finally {
       setDetailsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMonthlyDonationDetails = async (month = '') => {
+  const fetchMonthlyDonationDetails = useCallback(async (month = '') => {
     setDonationDetailsLoading(true);
     try {
       const url = month 
@@ -94,9 +57,7 @@ const Reports = () => {
       const response = await api.get(url);
       setMonthlyDonationDetails(response.data.details || []);
       setMonthlyDonationTotal(response.data.total || 0);
-      if (!selectedDonationMonth && response.data.month) {
-        setSelectedDonationMonth(response.data.month);
-      }
+      setSelectedDonationMonth((prev) => (!prev && response.data.month ? response.data.month : prev));
     } catch (error) {
       toast.error('Failed to fetch monthly donation details');
       setMonthlyDonationDetails([]);
@@ -104,27 +65,118 @@ const Reports = () => {
     } finally {
       setDonationDetailsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+    fetchPaidMembers();
+    fetchUnpaidMembers();
+    fetchMonthlyCollectionDetails();
+    fetchMonthlyDonationDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchMonthlyCollectionDetails(selectedMonth || '');
+  }, [selectedMonth, fetchMonthlyCollectionDetails]);
+
+  useEffect(() => {
+    fetchMonthlyDonationDetails(selectedDonationMonth || '');
+  }, [selectedDonationMonth, fetchMonthlyDonationDetails]);
+
+  const fetchReports = async () => {
+    try {
+      const [monthlyCollectionRes, monthlyDonationsRes, poolBalanceRes] = await Promise.all([
+        api.get('/reports/monthly-collection'),
+        api.get('/reports/monthly-donations'),
+        api.get('/reports/pool-balance'),
+      ]);
+
+      setMonthlyCollection(monthlyCollectionRes.data || []);
+      setMonthlyDonations(monthlyDonationsRes.data || []);
+      setPoolBalance(poolBalanceRes.data);
+    } catch (error) {
+      toast.error('Failed to fetch reports');
+      // Ensure arrays are set to empty arrays even on error
+      setMonthlyCollection([]);
+      setMonthlyDonations([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const adminPaymentsColumns = [
+  const fetchPaidMembers = async () => {
+    setPaidMembersLoading(true);
+    try {
+      const response = await api.get('/reports/paid-members');
+      setPaidMembers(response.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch paid members report');
+      setPaidMembers([]);
+    } finally {
+      setPaidMembersLoading(false);
+    }
+  };
+
+  const fetchUnpaidMembers = async () => {
+    setUnpaidMembersLoading(true);
+    try {
+      const response = await api.get('/reports/unpaid-members');
+      setUnpaidMembers(response.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch unpaid members report');
+      setUnpaidMembers([]);
+    } finally {
+      setUnpaidMembersLoading(false);
+    }
+  };
+
+
+  const paidMembersColumns = [
     {
-      name: 'Admin Name',
+      name: 'Member Name',
+      selector: (row) => row.member_name,
+      sortable: true,
+      wrap: true,
+    },
+    {
+      name: 'Mobile No',
+      selector: (row) => row.mobile_no,
+      sortable: true,
+    },
+    {
+      name: 'Paid Amount',
+      selector: (row) => `₹${row.paid_amount.toFixed(2)}`,
+      sortable: true,
+      right: true,
+    },
+    {
+      name: 'Payment Date',
+      selector: (row) => row.payment_date,
+      sortable: true,
+    },
+    {
+      name: 'Account Admin',
       selector: (row) => row.admin_name,
       sortable: true,
     },
+  ];
+
+  const unpaidMembersColumns = [
     {
-      name: 'Paid Members',
-      selector: (row) => row.paid_members,
+      name: 'Member Name',
+      selector: (row) => row.member_name,
+      sortable: true,
+      wrap: true,
+    },
+    {
+      name: 'Mobile No',
+      selector: (row) => row.mobile_no,
       sortable: true,
     },
     {
-      name: 'Pending Members',
-      selector: (row) => row.pending_members,
-      sortable: true,
-    },
-    {
-      name: 'Total Amount',
-      selector: (row) => `₹${row.total_amount.toFixed(2)}`,
+      name: 'Account Admin',
+      selector: (row) => row.admin_name,
       sortable: true,
     },
   ];
@@ -299,6 +351,98 @@ const Reports = () => {
     doc.save(`Monthly_Donation_${monthLabel}.pdf`);
   };
 
+  const handleDownloadPaidMembersPDF = () => {
+    const doc = new jsPDF();
+    const monthLabel = new Date().toISOString().slice(0, 7);
+    const filteredData = paidMembers.filter(item => 
+      item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+      item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+      item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
+    );
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Paid Members Report', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Month: ${monthLabel}`, 14, 30);
+    doc.text(`Total Paid Members: ${filteredData.length}`, 14, 37);
+    
+    // Calculate total amount
+    const totalAmount = filteredData.reduce((sum, item) => sum + (item.paid_amount || 0), 0);
+    doc.text(`Total Amount: Rs. ${totalAmount.toFixed(2)}`, 14, 44);
+    
+    // Table data
+    const tableData = filteredData.map(item => [
+      item.member_name,
+      item.mobile_no,
+      `Rs. ${item.paid_amount.toFixed(2)}`,
+      item.payment_date,
+      item.admin_name,
+    ]);
+
+    // Add table
+    autoTable(doc, {
+      head: [['Member Name', 'Mobile No', 'Paid Amount', 'Payment Date', 'Account Admin']],
+      body: tableData,
+      startY: 52,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [102, 126, 234] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    // Add total at bottom
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total Amount: Rs. ${totalAmount.toFixed(2)}`, 14, finalY);
+    
+    // Save PDF
+    doc.save(`Paid_Members_${monthLabel}.pdf`);
+  };
+
+  const handleDownloadUnpaidMembersPDF = () => {
+    const doc = new jsPDF();
+    const monthLabel = new Date().toISOString().slice(0, 7);
+    const filteredData = unpaidMembers.filter(item => 
+      item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+      item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+      item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
+    );
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Unpaid Members Report', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Month: ${monthLabel}`, 14, 30);
+    doc.text(`Total Unpaid Members: ${filteredData.length}`, 14, 37);
+    
+    // Table data
+    const tableData = filteredData.map(item => [
+      item.member_name,
+      item.mobile_no,
+      item.admin_name,
+    ]);
+
+    // Add table
+    autoTable(doc, {
+      head: [['Member Name', 'Mobile No', 'Account Admin']],
+      body: tableData,
+      startY: 45,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [102, 126, 234] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    // Add total at bottom
+    const finalY = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total Unpaid Members: ${filteredData.length}`, 14, finalY);
+    
+    // Save PDF
+    doc.save(`Unpaid_Members_${monthLabel}.pdf`);
+  };
+
   return (
     <Layout>
       <div className="container">
@@ -331,16 +475,91 @@ const Reports = () => {
           </div>
         )}
 
-        {/* Admin Payments Report */}
+        {/* Paid Members Report */}
         <div className="card">
-          <h2>Account Admin Wise Payment Report (Current Month)</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 style={{ margin: 0 }}>Paid Members Report (Current Month)</h2>
+            <button
+              onClick={handleDownloadPaidMembersPDF}
+              className="btn btn-primary"
+              disabled={paidMembersLoading || paidMembers.length === 0}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              Download PDF
+            </button>
+          </div>
           <DataTable
-            columns={adminPaymentsColumns}
-            data={adminPayments}
-            progressPending={loading}
+            columns={paidMembersColumns}
+            data={paidMembers.filter(item => 
+              item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+              item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+              item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
+            )}
+            progressPending={paidMembersLoading}
             pagination
             highlightOnHover
             responsive
+            subHeader
+            subHeaderComponent={
+              <input
+                type="text"
+                placeholder="Search by member name, mobile, or admin..."
+                value={paidFilterText}
+                onChange={(e) => setPaidFilterText(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px',
+                  width: '100%',
+                  maxWidth: '400px',
+                }}
+              />
+            }
+          />
+        </div>
+
+        {/* Unpaid Members Report */}
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 style={{ margin: 0 }}>Unpaid Members Report (Current Month)</h2>
+            <button
+              onClick={handleDownloadUnpaidMembersPDF}
+              className="btn btn-primary"
+              disabled={unpaidMembersLoading || unpaidMembers.length === 0}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              Download PDF
+            </button>
+          </div>
+          <DataTable
+            columns={unpaidMembersColumns}
+            data={unpaidMembers.filter(item => 
+              item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+              item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+              item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
+            )}
+            progressPending={unpaidMembersLoading}
+            pagination
+            highlightOnHover
+            responsive
+            subHeader
+            subHeaderComponent={
+              <input
+                type="text"
+                placeholder="Search by member name, mobile, or admin..."
+                value={unpaidFilterText}
+                onChange={(e) => setUnpaidFilterText(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px',
+                  width: '100%',
+                  maxWidth: '400px',
+                }}
+              />
+            }
           />
         </div>
 

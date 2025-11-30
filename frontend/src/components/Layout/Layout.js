@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import Footer from './Footer';
+import logoIcon from '../../assets/logo-icon.svg';
 import './Layout.css';
 
 const Layout = ({ children }) => {
@@ -16,7 +18,10 @@ const Layout = ({ children }) => {
     <div className="layout">
       <header className="header">
         <div className="header-content">
-          <h1 className="logo" onClick={() => navigate('/dashboard')}>Khidmat</h1>
+          <div className="logo-container" onClick={() => navigate('/dashboard')}>
+            <img src={logoIcon} alt="Khidmat Logo" className="logo-icon" />
+            <h1 className="logo">Khidmat</h1>
+          </div>
           <nav className="nav">
             <button className="nav-item" onClick={() => navigate('/dashboard')}>
               Dashboard
@@ -45,6 +50,7 @@ const Layout = ({ children }) => {
       <main className="main-content">
         {children}
       </main>
+      <Footer />
     </div>
   );
 };

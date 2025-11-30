@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -28,7 +29,8 @@ func (h *Handlers) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	).Scan(&paymentID)
 
 	if err != nil {
-		sendJSONError(w, "Failed to create payment: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error creating payment: %v", err)
+		sendJSONError(w, "Failed to create payment. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
@@ -49,7 +51,8 @@ func (h *Handlers) GetPayments(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.DB.Query(query)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch payments", http.StatusInternalServerError)
+		log.Printf("Error fetching payments: %v", err)
+		sendJSONError(w, "Failed to fetch payments. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()

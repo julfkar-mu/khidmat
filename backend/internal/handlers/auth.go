@@ -3,10 +3,13 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/khidmat/backend/internal/middleware"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -36,7 +39,8 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		sendJSONError(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Error during login: %v", err)
+		sendJSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
@@ -89,7 +93,26 @@ func (h *Handlers) Signup(w http.ResponseWriter, r *http.Request) {
 	).Scan(&userID)
 
 	if err != nil {
-		sendJSONError(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
+		// Log the actual error for debugging
+		log.Printf("Error creating user: %v", err)
+
+		// Check for PostgreSQL unique constraint violation
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == "23505" { // unique_violation
+				// Check which constraint was violated
+				constraintName := pqErr.Constraint
+				if strings.Contains(constraintName, "username") {
+					sendJSONError(w, "Username already exists. Please choose a different username.", http.StatusConflict)
+					return
+				} else if strings.Contains(constraintName, "email") {
+					sendJSONError(w, "Email already exists. Please use a different email address.", http.StatusConflict)
+					return
+				}
+			}
+		}
+
+		// Generic error for other database issues
+		sendJSONError(w, "Failed to create account. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 

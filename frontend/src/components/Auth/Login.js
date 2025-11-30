@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
+import logoIcon from '../../assets/logo-icon.svg';
 import './Auth.css';
 
 const Login = () => {
@@ -54,9 +55,18 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-container">
+    <div 
+      className="auth-container"
+      style={{
+        backgroundImage: `url(${process.env.PUBLIC_URL}/khidmat_login.png)`,
+      }}
+    >
       <div className="auth-card">
-        <h2>Khidmat - Login</h2>
+        <div className="auth-logo-container">
+          <img src={logoIcon} alt="Khidmat Logo" className="auth-logo" />
+          <h2>Khidmat</h2>
+        </div>
+        <p className="auth-subtitle">Sign In to your account</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Username</label>

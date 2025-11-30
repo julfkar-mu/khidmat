@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
@@ -40,7 +42,8 @@ func (h *Handlers) GetAdminPaymentsReport(w http.ResponseWriter, r *http.Request
 
 	rows, err := h.DB.Query(query, startOfMonth, endOfMonth)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch report: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error fetching admin payments report: %v", err)
+		sendJSONError(w, "Failed to fetch report. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -73,7 +76,8 @@ func (h *Handlers) GetMonthlyCollection(w http.ResponseWriter, r *http.Request) 
 
 	rows, err := h.DB.Query(query)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch monthly collection", http.StatusInternalServerError)
+		log.Printf("Error fetching monthly collection: %v", err)
+		sendJSONError(w, "Failed to fetch monthly collection. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -127,7 +131,8 @@ func (h *Handlers) GetMonthlyCollectionDetails(w http.ResponseWriter, r *http.Re
 
 	rows, err := h.DB.Query(query, startOfMonth, endOfMonth)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch monthly collection details: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error fetching monthly collection details: %v", err)
+		sendJSONError(w, "Failed to fetch monthly collection details. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -172,7 +177,8 @@ func (h *Handlers) GetMonthlyDonations(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.DB.Query(query)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch monthly donations", http.StatusInternalServerError)
+		log.Printf("Error fetching monthly donations: %v", err)
+		sendJSONError(w, "Failed to fetch monthly donations. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -226,7 +232,8 @@ func (h *Handlers) GetMonthlyDonationDetails(w http.ResponseWriter, r *http.Requ
 
 	rows, err := h.DB.Query(query, startOfMonth, endOfMonth)
 	if err != nil {
-		sendJSONError(w, "Failed to fetch monthly donation details: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Error fetching monthly donation details: %v", err)
+		sendJSONError(w, "Failed to fetch monthly donation details. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -272,4 +279,156 @@ func (h *Handlers) GetPoolBalance(w http.ResponseWriter, r *http.Request) {
 		"total_donations": totalDonations,
 		"balance":         balance,
 	}, http.StatusOK)
+}
+
+func (h *Handlers) GetPaidMembersReport(w http.ResponseWriter, r *http.Request) {
+	// Get current month
+	now := time.Now()
+	year, month := now.Year(), now.Month()
+	startOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	endOfMonth := startOfMonth.AddDate(0, 1, 0)
+
+	// Get user info
+	adminID := getUserIDFromRequest(r)
+	userType := getUserTypeFromRequest(r)
+
+	var query string
+	var rows *sql.Rows
+	var err error
+
+	if userType == "master_admin" {
+		// Master admin sees all paid members
+		query = `
+			SELECT 
+				p.member_name,
+				p.contact_no as mobile_no,
+				p.amount as paid_amount,
+				TO_CHAR(p.payment_date, 'YYYY-MM-DD') as payment_date,
+				u.username as admin_name
+			FROM payments p
+			LEFT JOIN users u ON p.admin_id = u.id
+			WHERE p.payment_date >= $1 AND p.payment_date < $2
+			ORDER BY p.payment_date DESC, p.member_name
+		`
+		rows, err = h.DB.Query(query, startOfMonth, endOfMonth)
+	} else {
+		// Account admin sees only their paid members
+		query = `
+			SELECT 
+				p.member_name,
+				p.contact_no as mobile_no,
+				p.amount as paid_amount,
+				TO_CHAR(p.payment_date, 'YYYY-MM-DD') as payment_date,
+				u.username as admin_name
+			FROM payments p
+			LEFT JOIN users u ON p.admin_id = u.id
+			WHERE p.payment_date >= $1 AND p.payment_date < $2
+				AND p.admin_id = $3
+			ORDER BY p.payment_date DESC, p.member_name
+		`
+		rows, err = h.DB.Query(query, startOfMonth, endOfMonth, adminID)
+	}
+
+	if err != nil {
+		log.Printf("Error fetching paid members report: %v", err)
+		sendJSONError(w, "Failed to fetch paid members report. Please try again later.", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var paidMembers []models.PaidMemberReport
+	for rows.Next() {
+		var member models.PaidMemberReport
+		err := rows.Scan(
+			&member.MemberName,
+			&member.MobileNo,
+			&member.PaidAmount,
+			&member.PaymentDate,
+			&member.AdminName,
+		)
+		if err != nil {
+			continue
+		}
+		paidMembers = append(paidMembers, member)
+	}
+
+	sendJSONResponse(w, paidMembers, http.StatusOK)
+}
+
+func (h *Handlers) GetUnpaidMembersReport(w http.ResponseWriter, r *http.Request) {
+	// Get current month
+	now := time.Now()
+	year, month := now.Year(), now.Month()
+	startOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	endOfMonth := startOfMonth.AddDate(0, 1, 0)
+
+	// Get user info
+	adminID := getUserIDFromRequest(r)
+	userType := getUserTypeFromRequest(r)
+
+	var query string
+	var rows *sql.Rows
+	var err error
+
+	if userType == "master_admin" {
+		// Master admin sees all unpaid members
+		query = `
+			SELECT DISTINCT
+				m.name as member_name,
+				m.mobile_no,
+				u.username as admin_name
+			FROM members m
+			INNER JOIN users u ON m.admin_id = u.id
+			WHERE m.is_active = true
+				AND m.id NOT IN (
+					SELECT DISTINCT p.member_id
+					FROM payments p
+					WHERE p.payment_date >= $1 AND p.payment_date < $2
+				)
+			ORDER BY u.username, m.name
+		`
+		rows, err = h.DB.Query(query, startOfMonth, endOfMonth)
+	} else {
+		// Account admin sees only their unpaid members
+		query = `
+			SELECT DISTINCT
+				m.name as member_name,
+				m.mobile_no,
+				u.username as admin_name
+			FROM members m
+			INNER JOIN users u ON m.admin_id = u.id
+			WHERE m.is_active = true
+				AND m.admin_id = $3
+				AND m.id NOT IN (
+					SELECT DISTINCT p.member_id
+					FROM payments p
+					WHERE p.payment_date >= $1 AND p.payment_date < $2
+				)
+			ORDER BY m.name
+		`
+		rows, err = h.DB.Query(query, startOfMonth, endOfMonth, adminID)
+	}
+
+	if err != nil {
+		log.Printf("Error fetching unpaid members report: %v", err)
+		sendJSONError(w, "Failed to fetch unpaid members report. Please try again later.", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var unpaidMembers []models.UnpaidMemberReport
+	for rows.Next() {
+		var member models.UnpaidMemberReport
+		err := rows.Scan(
+			&member.MemberName,
+			&member.MobileNo,
+			&member.AdminName,
+		)
+		if err != nil {
+			continue
+		}
+		unpaidMembers = append(unpaidMembers, member)
+	}
+
+	sendJSONResponse(w, unpaidMembers, http.StatusOK)
 }

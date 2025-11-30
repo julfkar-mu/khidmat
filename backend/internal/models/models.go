@@ -92,3 +92,17 @@ type MonthlyDonationDetail struct {
 	AdminName       string  `json:"admin_name"`
 	DonationDate    string  `json:"donation_date"`
 }
+
+type PaidMemberReport struct {
+	MemberName  string  `json:"member_name"`
+	MobileNo    string  `json:"mobile_no"`
+	PaidAmount  float64 `json:"paid_amount"`
+	PaymentDate string  `json:"payment_date"`
+	AdminName   string  `json:"admin_name"`
+}
+
+type UnpaidMemberReport struct {
+	MemberName string `json:"member_name"`
+	MobileNo   string `json:"mobile_no"`
+	AdminName  string `json:"admin_name"`
+}
