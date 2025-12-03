@@ -55,6 +55,10 @@ func main() {
 	api.HandleFunc("/donations", h.CreateDonation).Methods("POST", "OPTIONS")
 	api.HandleFunc("/donations", h.GetDonations).Methods("GET", "OPTIONS")
 
+	// Recommended Beneficiary routes
+	api.HandleFunc("/recommended-beneficiaries", h.CreateRecommendedBeneficiary).Methods("POST", "OPTIONS")
+	api.HandleFunc("/recommended-beneficiaries", h.GetRecommendedBeneficiaries).Methods("GET", "OPTIONS")
+
 	// Report routes
 	api.HandleFunc("/reports/admin-payments", h.GetAdminPaymentsReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/paid-members", h.GetPaidMembersReport).Methods("GET", "OPTIONS")

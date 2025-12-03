@@ -13,6 +13,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  LabelList,
 } from 'recharts';
 import api from '../../services/api';
 import Layout from '../Layout/Layout';
@@ -28,9 +29,17 @@ const Dashboard = () => {
   const [poolBalance, setPoolBalance] = useState(null);
   const [paidMembers, setPaidMembers] = useState([]);
   const [unpaidMembers, setUnpaidMembers] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
     fetchDashboardData();
+    
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -69,6 +78,8 @@ const Dashboard = () => {
     { title: 'Member List', path: '/members', icon: '📋' },
     { title: 'Payment Entry', path: '/payments', icon: '💰' },
     { title: 'Donation Entry', path: '/donations', icon: '🎁' },
+    { title: 'Recommend Beneficiary', path: '/recommended-beneficiaries', icon: '🤲' },
+    { title: 'Recommended Beneficiaries Report', path: '/recommended-beneficiaries/report', icon: '📋' },
     { title: 'View Reports', path: '/reports', icon: '📊' },
   ];
 
@@ -279,17 +290,22 @@ const Dashboard = () => {
               <div className="chart-loading">Loading...</div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
+                <PieChart margin={{ top: 10, right: 10, bottom: isMobile ? 50 : 10, left: 10 }}>
                   <Pie
                     data={paymentStatusData}
                     cx="50%"
-                    cy="50%"
+                    cy={isMobile ? "45%" : "50%"}
                     labelLine={false}
-                    label={({ name, value, percent }) =>
-                      `${name}: ${value} (${(percent * 100).toFixed(0)}%)`
-                    }
-                    outerRadius={90}
-                    innerRadius={40}
+                    label={({ name, value, percent }) => {
+                      // Use shorter labels on mobile to prevent cropping
+                      if (isMobile) {
+                        const shortName = name === 'Paid Members' ? 'Paid' : 'Unpaid';
+                        return `${shortName}\n${value} (${(percent * 100).toFixed(0)}%)`;
+                      }
+                      return `${name}: ${value} (${(percent * 100).toFixed(0)}%)`;
+                    }}
+                    outerRadius={isMobile ? 70 : 90}
+                    innerRadius={isMobile ? 30 : 40}
                     fill="#8884d8"
                     dataKey="value"
                     paddingAngle={2}
@@ -303,13 +319,27 @@ const Dashboard = () => {
                       />
                     ))}
                   </Pie>
+                  <Legend 
+                    verticalAlign="bottom"
+                    height={isMobile ? 50 : 36}
+                    wrapperStyle={{ fontSize: isMobile ? '12px' : '14px' }}
+                    formatter={(value) => {
+                      // Use full names in legend
+                      return value === 'Paid Members' ? 'Paid Members' : 'Unpaid Members';
+                    }}
+                  />
                   <Tooltip 
                     contentStyle={{
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      fontSize: isMobile ? '12px' : '14px',
                     }}
+                    formatter={(value, name) => [
+                      `${value} ${name}`,
+                      'Count'
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>

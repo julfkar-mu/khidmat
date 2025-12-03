@@ -172,11 +172,16 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.8);
   transition: all 0.3s ease;
+  overflow: visible;
 }
 
 .chart-card:hover {
   box-shadow: 0 12px 24px rgba(102, 126, 234, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
+}
+
+.chart-card > div {
+  overflow: visible !important;
 }
 
 .chart-card h3 {
@@ -321,6 +326,20 @@
   .dashboard h2 {
     font-size: 20px;
     margin-top: 32px;
+  }
+
+  .chart-card {
+    padding: 16px;
+    overflow: visible;
+  }
+
+  .chart-card h3 {
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-card > div {
+    overflow: visible !important;
   }
 }
 

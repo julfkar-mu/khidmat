@@ -1,11 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Footer from './Footer';
 import logoIcon from '../../assets/logo-icon.svg';
 import './Layout.css';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation(); // Force re-render on route change
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const handleLogout = () => {
@@ -15,7 +16,7 @@ const Layout = ({ children }) => {
   };
 
   return (
-    <div className="layout">
+    <div className="layout" key={location.pathname}>
       <header className="header">
         <div className="header-content">
           <div className="logo-container" onClick={() => navigate('/dashboard')}>
@@ -34,6 +35,12 @@ const Layout = ({ children }) => {
             </button>
             <button className="nav-item" onClick={() => navigate('/donations')}>
               Donations
+            </button>
+            <button className="nav-item" onClick={() => navigate('/recommended-beneficiaries')}>
+              Recommend Beneficiary
+            </button>
+            <button className="nav-item" onClick={() => navigate('/recommended-beneficiaries/report')}>
+              Beneficiaries Report
             </button>
             <button className="nav-item" onClick={() => navigate('/reports')}>
               Reports

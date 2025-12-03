@@ -71,6 +71,7 @@ func RunMigrations(db *sql.DB) error {
 		createMembersTable,
 		createPaymentsTable,
 		createDonationsTable,
+		createRecommendedBeneficiariesTable,
 	}
 
 	for _, migration := range migrations {
@@ -133,6 +134,16 @@ CREATE TABLE IF NOT EXISTS donations (
 );
 `
 
-
-
-
+const createRecommendedBeneficiariesTable = `
+CREATE TABLE IF NOT EXISTS recommended_beneficiaries (
+    id SERIAL PRIMARY KEY,
+    beneficiary_name VARCHAR(255) NOT NULL,
+    relative_name VARCHAR(255) NOT NULL,
+    mobile_no VARCHAR(20) NOT NULL,
+    address TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    recommended_by VARCHAR(255) NOT NULL,
+    admin_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+`

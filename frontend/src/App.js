@@ -10,6 +10,8 @@ import MemberList from './components/Members/MemberList';
 import PaymentEntry from './components/Payments/PaymentEntry';
 import DonationEntry from './components/Donations/DonationEntry';
 import Reports from './components/Reports/Reports';
+import RecommendBeneficiary from './components/RecommendedBeneficiaries/RecommendBeneficiary';
+import RecommendedBeneficiariesReport from './components/RecommendedBeneficiaries/RecommendedBeneficiariesReport';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import './App.css';
 
@@ -65,6 +67,22 @@ function App() {
             element={
               <PrivateRoute>
                 <Reports />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/recommended-beneficiaries"
+            element={
+              <PrivateRoute>
+                <RecommendBeneficiary />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/recommended-beneficiaries/report"
+            element={
+              <PrivateRoute>
+                <RecommendedBeneficiariesReport />
               </PrivateRoute>
             }
           />

@@ -106,3 +106,16 @@ type UnpaidMemberReport struct {
 	MobileNo   string `json:"mobile_no"`
 	AdminName  string `json:"admin_name"`
 }
+
+type RecommendedBeneficiary struct {
+	ID              int       `json:"id"`
+	BeneficiaryName string    `json:"beneficiary_name"`
+	RelativeName    string    `json:"relative_name"`
+	MobileNo        string    `json:"mobile_no"`
+	Address         string    `json:"address"`
+	Reason          string    `json:"reason"`
+	RecommendedBy   string    `json:"recommended_by"`
+	AdminID         int       `json:"admin_id"`
+	AdminName       string    `json:"admin_name,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+}
