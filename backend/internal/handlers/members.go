@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -42,12 +43,28 @@ func (h *Handlers) CreateMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GetMembers(w http.ResponseWriter, r *http.Request) {
+
+	userType := getUserTypeFromRequest(r)
+	log.Printf("userType: %s", userType)
+	adminID := getUserIDFromRequest(r)
+
 	query := `
+		SELECT m.id, m.name, m.mobile_no, m.address, m.admin_id, u.username, m.is_active, m.created_at, m.updated_at
+		FROM members m
+		INNER JOIN users u ON m.admin_id = u.id
+		Where m.admin_id = %d
+		ORDER BY m.created_at DESC
+	`
+	query = fmt.Sprintf(query, adminID)
+
+	if userType == "master_admin" {
+		query = `
 		SELECT m.id, m.name, m.mobile_no, m.address, m.admin_id, u.username, m.is_active, m.created_at, m.updated_at
 		FROM members m
 		LEFT JOIN users u ON m.admin_id = u.id
 		ORDER BY m.created_at DESC
 	`
+	}
 
 	rows, err := h.DB.Query(query)
 	if err != nil {

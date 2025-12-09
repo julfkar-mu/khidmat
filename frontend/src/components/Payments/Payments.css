@@ -1,17 +1,23 @@
-/* Payment specific styles if needed */
+/* Payment specific styles */
 .form-group select {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
   background-color: white;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.form-group select:hover {
+  border-color: #d1fae5;
 }
 
 .form-group select:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
 }
 
 /* Searchable Select Component */
@@ -22,18 +28,23 @@
 
 .searchable-select-input {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
   background-color: white;
   cursor: text;
+  transition: all 0.3s ease;
+}
+
+.searchable-select-input:hover {
+  border-color: #d1fae5;
 }
 
 .searchable-select-input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
 }
 
 .searchable-select-dropdown {
@@ -42,30 +53,44 @@
   left: 0;
   right: 0;
   background: white;
-  border: 1px solid #ddd;
+  border: 2px solid #16a34a;
   border-top: none;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 8px 8px;
   max-height: 300px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-top: -1px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  margin-top: -2px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .searchable-select-option {
-  padding: 12px 15px;
+  padding: 14px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s;
+  border-bottom: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
 }
 
 .searchable-select-option:hover {
-  background-color: #f8f9fa;
+  background-color: #f0fdf4;
+  padding-left: 20px;
 }
 
 .searchable-select-option.selected {
-  background-color: #e7f3ff;
-  font-weight: 500;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  font-weight: 600;
+  color: #065f46;
 }
 
 .searchable-select-option:last-child {

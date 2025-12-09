@@ -19,7 +19,8 @@ const MemberList = () => {
   const fetchMembers = async () => {
     try {
       const response = await api.get('/members');
-      setMembers(response.data);
+      // Normalize API result to an array to avoid null errors
+      setMembers(Array.isArray(response.data) ? response.data : (response.data ? [response.data] : []));
     } catch (error) {
       toast.error('Failed to fetch members');
     } finally {
@@ -82,7 +83,9 @@ const MemberList = () => {
     },
   ];
 
-  const filteredMembers = members.filter(
+  // Ensure we always operate on an array
+  const safeMembers = Array.isArray(members) ? members : [];
+  const filteredMembers = safeMembers.filter(
     (member) =>
       member.name.toLowerCase().includes(filterText.toLowerCase()) ||
       member.mobile_no.includes(filterText) ||

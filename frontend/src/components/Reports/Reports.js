@@ -32,7 +32,7 @@ const Reports = () => {
   const fetchMonthlyCollectionDetails = useCallback(async (month = '') => {
     setDetailsLoading(true);
     try {
-      const url = month 
+      const url = month
         ? `/reports/monthly-collection-details?month=${month}`
         : '/reports/monthly-collection-details';
       const response = await api.get(url);
@@ -51,7 +51,7 @@ const Reports = () => {
   const fetchMonthlyDonationDetails = useCallback(async (month = '') => {
     setDonationDetailsLoading(true);
     try {
-      const url = month 
+      const url = month
         ? `/reports/monthly-donation-details?month=${month}`
         : '/reports/monthly-donation-details';
       const response = await api.get(url);
@@ -267,44 +267,76 @@ const Reports = () => {
     },
   ];
 
+  // Helper to convert ArrayBuffer -> base64
+  const arrayBufferToBase64 = (buffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  };
+
+  // Load Devanagari font into jsPDF instance (expects font file at /fonts/...)
+  const loadDevaFontToDoc = async (doc) => {
+    try {
+      // Fetch font from public folderMANGAL.TTF
+      const res = await fetch('/fonts/NotoSansDevanagari-Regular.ttf');
+      //const res = await fetch('/fonts/Mangal/MANGAL.TTF');
+      if (!res.ok) return;
+      const ab = await res.arrayBuffer();
+      const b64 = arrayBufferToBase64(ab);
+      // filename used in VFS must match when adding font
+      const vfsName = 'NotoSansDevanagari-Regular.ttf';
+      doc.addFileToVFS(vfsName, b64);
+      doc.addFont(vfsName, 'NotoSansDevanagari', 'normal');
+      doc.setFont('NotoSansDevanagari');
+    } catch (err) {
+      // silently fail — fallback to default font
+      console.warn('Could not load Devanagari font for PDF:', err);
+    }
+  };
+
   const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    const monthLabel = selectedMonth || new Date().toISOString().slice(0, 7);
-    
-    // Title
-    doc.setFontSize(18);
-    doc.text('Monthly Collection Report', 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Month: ${monthLabel}`, 14, 30);
-    doc.text(`Total Collection: Rs. ${monthlyCollectionTotal.toFixed(2)}`, 14, 37);
-    
-    // Table data - replace rupee symbol with "Rs."
-    const tableData = monthlyCollectionDetails.map(item => [
-      item.member_name,
-      item.contact_no,
-      `Rs. ${item.amount.toFixed(2)}`,
-      item.admin_name,
-      item.payment_date,
-    ]);
+    (async () => {
+      const doc = new jsPDF();
+      await loadDevaFontToDoc(doc);
+      const monthLabel = selectedMonth || new Date().toISOString().slice(0, 7);
 
-    // Add table
-    autoTable(doc, {
-      head: [['Member Name', 'Contact No', 'Amount', 'Account Admin', 'Payment Date']],
-      body: tableData,
-      startY: 45,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [102, 126, 234] },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
+      // Title
+      doc.setFontSize(18);
+      doc.text('Monthly Collection Report', 14, 20);
+      doc.setFontSize(12);
+      doc.text(`Month: ${monthLabel}`, 14, 30);
+      doc.text(`Total Collection: Rs. ${monthlyCollectionTotal.toFixed(2)}`, 14, 37);
 
-    // Add total at bottom
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Total Collection: Rs. ${monthlyCollectionTotal.toFixed(2)}`, 14, finalY);
-    
-    // Save PDF
-    doc.save(`Monthly_Collection_${monthLabel}.pdf`);
+      // Table data - replace rupee symbol with "Rs."
+      const tableData = monthlyCollectionDetails.map(item => [
+        item.member_name,
+        item.contact_no,
+        `Rs. ${item.amount.toFixed(2)}`,
+        item.admin_name,
+        item.payment_date,
+      ]);
+
+      // Add table
+      autoTable(doc, {
+        head: [['Member Name', 'Contact No', 'Amount', 'Account Admin', 'Payment Date']],
+        body: tableData,
+        startY: 45,
+        styles: { fontSize: 8, font: 'NotoSansDevanagari' },
+        headStyles: { fillColor: [102, 126, 234] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
+
+      // Add total at bottom
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total Collection: Rs. ${monthlyCollectionTotal.toFixed(2)}`, 14, finalY);
+      doc.save(`Monthly_Collection_${monthLabel}.pdf`);
+    })();
   };
 
   // Get available months from monthlyCollection for dropdown
@@ -312,135 +344,119 @@ const Reports = () => {
   const availableDonationMonths = monthlyDonations.map(item => item.month).reverse();
 
   const handleDownloadDonationPDF = () => {
-    const doc = new jsPDF();
-    const monthLabel = selectedDonationMonth || new Date().toISOString().slice(0, 7);
-    
-    // Title
-    doc.setFontSize(18);
-    doc.text('Monthly Donation Report', 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Month: ${monthLabel}`, 14, 30);
-    doc.text(`Total Donation: Rs. ${monthlyDonationTotal.toFixed(2)}`, 14, 37);
-    
-    // Table data - replace rupee symbol with "Rs."
-    const tableData = monthlyDonationDetails.map(item => [
-      item.beneficiary_name,
-      item.contact_no,
-      `Rs. ${item.amount.toFixed(2)}`,
-      item.admin_name,
-      item.donation_date,
-    ]);
+    (async () => {
+      const doc = new jsPDF();
+      await loadDevaFontToDoc(doc);
+      const monthLabel = selectedDonationMonth || new Date().toISOString().slice(0, 7);
+      doc.setFontSize(18);
+      doc.text('Monthly Donation Report', 14, 20);
+      doc.setFontSize(12);
+      doc.text(`Month: ${monthLabel}`, 14, 30);
+      doc.text(`Total Donation: Rs. ${monthlyDonationTotal.toFixed(2)}`, 14, 37);
 
-    // Add table
-    autoTable(doc, {
-      head: [['Beneficiary Name', 'Contact No', 'Amount', 'Account Admin', 'Donation Date']],
-      body: tableData,
-      startY: 45,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [102, 126, 234] },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
+      const tableData = monthlyDonationDetails.map(item => [
+        item.beneficiary_name,
+        item.contact_no,
+        `Rs. ${item.amount.toFixed(2)}`,
+        item.admin_name,
+        item.donation_date,
+      ]);
 
-    // Add total at bottom
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Total Donation: Rs. ${monthlyDonationTotal.toFixed(2)}`, 14, finalY);
-    
-    // Save PDF
-    doc.save(`Monthly_Donation_${monthLabel}.pdf`);
+      autoTable(doc, {
+        head: [['Beneficiary Name', 'Contact No', 'Amount', 'Account Admin', 'Donation Date']],
+        body: tableData,
+        startY: 45,
+        styles: { fontSize: 8, font: 'NotoSansDevanagari' },
+        headStyles: { fillColor: [102, 126, 234] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total Donation: Rs. ${monthlyDonationTotal.toFixed(2)}`, 14, finalY);
+      doc.save(`Monthly_Donation_${monthLabel}.pdf`);
+    })();
   };
 
   const handleDownloadPaidMembersPDF = () => {
-    const doc = new jsPDF();
-    const monthLabel = new Date().toISOString().slice(0, 7);
-    const filteredData = paidMembers.filter(item => 
-      item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
-      item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
-      item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
-    );
-    
-    // Title
-    doc.setFontSize(18);
-    doc.text('Paid Members Report', 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Month: ${monthLabel}`, 14, 30);
-    doc.text(`Total Paid Members: ${filteredData.length}`, 14, 37);
-    
-    // Calculate total amount
-    const totalAmount = filteredData.reduce((sum, item) => sum + (item.paid_amount || 0), 0);
-    doc.text(`Total Amount: Rs. ${totalAmount.toFixed(2)}`, 14, 44);
-    
-    // Table data
-    const tableData = filteredData.map(item => [
-      item.member_name,
-      item.mobile_no,
-      `Rs. ${item.paid_amount.toFixed(2)}`,
-      item.payment_date,
-      item.admin_name,
-    ]);
+    (async () => {
+      const doc = new jsPDF();
+      await loadDevaFontToDoc(doc);
+      const monthLabel = new Date().toISOString().slice(0, 7);
+      const filteredData = paidMembers.filter(item =>
+        item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+        item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+        item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
+      );
 
-    // Add table
-    autoTable(doc, {
-      head: [['Member Name', 'Mobile No', 'Paid Amount', 'Payment Date', 'Account Admin']],
-      body: tableData,
-      startY: 52,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [102, 126, 234] },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
-
-    // Add total at bottom
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Total Amount: Rs. ${totalAmount.toFixed(2)}`, 14, finalY);
-    
-    // Save PDF
-    doc.save(`Paid_Members_${monthLabel}.pdf`);
+      // Title
+      doc.setFontSize(18);
+      doc.text('Paid Members Report', 14, 20);
+      doc.setFontSize(12);
+      doc.text(`Month: ${monthLabel}`, 14, 30);
+      doc.text(`Total Paid Members: ${filteredData.length}`, 14, 37);
+      const totalAmount = filteredData.reduce((sum, item) => sum + (item.paid_amount || 0), 0);
+      doc.text(`Total Amount: Rs. ${totalAmount.toFixed(2)}`, 14, 44);
+      const tableData = filteredData.map(item => [
+        item.member_name,
+        item.mobile_no,
+        `Rs. ${item.paid_amount.toFixed(2)}`,
+        item.payment_date,
+        item.admin_name,
+      ]);
+      autoTable(doc, {
+        head: [['Member Name', 'Mobile No', 'Paid Amount', 'Payment Date', 'Account Admin']],
+        body: tableData,
+        startY: 52,
+        styles: { fontSize: 8, font: 'NotoSansDevanagari' },
+        headStyles: { fillColor: [102, 126, 234] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total Amount: Rs. ${totalAmount.toFixed(2)}`, 14, finalY);
+      doc.save(`Paid_Members_${monthLabel}.pdf`);
+    })();
   };
 
   const handleDownloadUnpaidMembersPDF = () => {
-    const doc = new jsPDF();
-    const monthLabel = new Date().toISOString().slice(0, 7);
-    const filteredData = unpaidMembers.filter(item => 
-      item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
-      item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
-      item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
-    );
-    
-    // Title
-    doc.setFontSize(18);
-    doc.text('Unpaid Members Report', 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Month: ${monthLabel}`, 14, 30);
-    doc.text(`Total Unpaid Members: ${filteredData.length}`, 14, 37);
-    
-    // Table data
-    const tableData = filteredData.map(item => [
-      item.member_name,
-      item.mobile_no,
-      item.admin_name,
-    ]);
+    (async () => {
+      const doc = new jsPDF();
+      await loadDevaFontToDoc(doc);
+      const monthLabel = new Date().toISOString().slice(0, 7);
+      const filteredData = unpaidMembers.filter(item =>
+        item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+        item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+        item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
+      );
 
-    // Add table
-    autoTable(doc, {
-      head: [['Member Name', 'Mobile No', 'Account Admin']],
-      body: tableData,
-      startY: 45,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [102, 126, 234] },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
-
-    // Add total at bottom
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Total Unpaid Members: ${filteredData.length}`, 14, finalY);
-    
-    // Save PDF
-    doc.save(`Unpaid_Members_${monthLabel}.pdf`);
+      // Title
+      doc.setFontSize(18);
+      doc.text('Unpaid Members Report', 14, 20);
+      doc.setFontSize(12);
+      doc.text(`Month: ${monthLabel}`, 14, 30);
+      doc.text(`Total Unpaid Members: ${filteredData.length}`, 14, 37);
+      const tableData = filteredData.map(item => [
+        item.member_name,
+        item.mobile_no,
+        item.admin_name,
+      ]);
+      autoTable(doc, {
+        head: [['Member Name', 'Mobile No', 'Account Admin']],
+        body: tableData,
+        startY: 45,
+        styles: { fontSize: 8, font: 'NotoSansDevanagari' },
+        headStyles: { fillColor: [102, 126, 234] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+      });
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total Unpaid Members: ${filteredData.length}`, 14, finalY);
+      doc.save(`Unpaid_Members_${monthLabel}.pdf`);
+    })();
   };
 
   return (
@@ -490,7 +506,7 @@ const Reports = () => {
           </div>
           <DataTable
             columns={paidMembersColumns}
-            data={paidMembers.filter(item => 
+            data={paidMembers.filter(item =>
               item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
               item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
               item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
@@ -534,7 +550,7 @@ const Reports = () => {
           </div>
           <DataTable
             columns={unpaidMembersColumns}
-            data={unpaidMembers.filter(item => 
+            data={unpaidMembers.filter(item =>
               item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
               item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
               item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
@@ -609,7 +625,7 @@ const Reports = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Total at top */}
           {monthlyCollectionTotal > 0 && (
             <div style={{
@@ -628,7 +644,7 @@ const Reports = () => {
 
           <DataTable
             columns={monthlyCollectionDetailsColumns}
-            data={monthlyCollectionDetails.filter(item => 
+            data={monthlyCollectionDetails.filter(item =>
               item.member_name?.toLowerCase().includes(filterText.toLowerCase()) ||
               item.contact_no?.toLowerCase().includes(filterText.toLowerCase()) ||
               item.admin_name?.toLowerCase().includes(filterText.toLowerCase())
@@ -703,7 +719,7 @@ const Reports = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Total at top */}
           {monthlyDonationTotal > 0 && (
             <div style={{
@@ -722,7 +738,7 @@ const Reports = () => {
 
           <DataTable
             columns={monthlyDonationDetailsColumns}
-            data={monthlyDonationDetails.filter(item => 
+            data={monthlyDonationDetails.filter(item =>
               item.beneficiary_name?.toLowerCase().includes(donationFilterText.toLowerCase()) ||
               item.contact_no?.toLowerCase().includes(donationFilterText.toLowerCase()) ||
               item.admin_name?.toLowerCase().includes(donationFilterText.toLowerCase())

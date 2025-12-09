@@ -33,11 +33,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -193,16 +193,16 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={lineChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
-                  <XAxis 
-                    dataKey="month" 
+                  <XAxis
+                    dataKey="month"
                     stroke="#718096"
                     tick={{ fill: '#4a5568', fontSize: 12 }}
                   />
-                  <YAxis 
+                  <YAxis
                     stroke="#718096"
                     tick={{ fill: '#4a5568', fontSize: 12 }}
                   />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value) => `₹${value.toFixed(2)}`}
                     contentStyle={{
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -211,7 +211,7 @@ const Dashboard = () => {
                       boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                     }}
                   />
-                  <Legend 
+                  <Legend
                     wrapperStyle={{ paddingTop: '10px' }}
                     iconType="line"
                   />
@@ -249,26 +249,28 @@ const Dashboard = () => {
                   <PieChart>
                     <Pie
                       data={adminPaymentsData}
-                      cx="50%"
-                      cy="50%"
+                      cx={isMobile ? "42%" : "50%"}
+                      cy={isMobile ? "42%" : "50%"}
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={90}
-                      innerRadius={40}
+                      outerRadius={80}
+                      innerRadius={30}
                       fill="#8884d8"
                       dataKey="value"
-                      paddingAngle={2}
+                      paddingAngle={1}
+                      startAngle={90}
+                      endAngle={-270}
                     >
                       {adminPaymentsData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
+                        <Cell
+                          key={`cell-${index}`}
                           fill={COLORS[index % COLORS.length]}
                           stroke="#fff"
                           strokeWidth={2}
                         />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value) => `₹${value.toFixed(2)}`}
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -293,22 +295,24 @@ const Dashboard = () => {
                 <PieChart margin={{ top: 10, right: 10, bottom: isMobile ? 50 : 10, left: 10 }}>
                   <Pie
                     data={paymentStatusData}
-                    cx="50%"
-                    cy={isMobile ? "45%" : "50%"}
+                    cx="53%"
+                    cy={isMobile ? "48%" : "48%"}
                     labelLine={false}
                     label={({ name, value, percent }) => {
                       // Use shorter labels on mobile to prevent cropping
-                      if (isMobile) {
-                        const shortName = name === 'Paid Members' ? 'Paid' : 'Unpaid';
-                        return `${shortName}\n${value} (${(percent * 100).toFixed(0)}%)`;
-                      }
-                      return `${name}: ${value} (${(percent * 100).toFixed(0)}%)`;
+                      //if (isMobile) {
+                      const shortName = name === 'Paid Members' ? 'Paid' : 'Unpaid';
+                      return `${shortName}\n${value} (${(percent * 100).toFixed(0)}%)`;
+                      //}
+                      ///return `${name}: ${value} (${(percent * 100).toFixed(0)}%)`;
                     }}
                     outerRadius={isMobile ? 70 : 90}
                     innerRadius={isMobile ? 30 : 40}
                     fill="#8884d8"
                     dataKey="value"
                     paddingAngle={2}
+                    startAngle={90}
+                    endAngle={-270}
                   >
                     {paymentStatusData.map((entry, index) => (
                       <Cell
@@ -319,7 +323,7 @@ const Dashboard = () => {
                       />
                     ))}
                   </Pie>
-                  <Legend 
+                  <Legend
                     verticalAlign="bottom"
                     height={isMobile ? 50 : 36}
                     wrapperStyle={{ fontSize: isMobile ? '12px' : '14px' }}
@@ -328,7 +332,7 @@ const Dashboard = () => {
                       return value === 'Paid Members' ? 'Paid Members' : 'Unpaid Members';
                     }}
                   />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
                       border: '1px solid #e2e8f0',
