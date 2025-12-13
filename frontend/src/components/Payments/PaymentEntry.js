@@ -24,7 +24,7 @@ const PaymentEntry = () => {
 
   const fetchMembers = async () => {
     try {
-      const response = await api.get('/members');
+      const response = await api.get('/unpaid-members');
       setMembers(response.data.filter(m => m.is_active));
     } catch (error) {
       toast.error('Failed to fetch members');
@@ -67,7 +67,7 @@ const PaymentEntry = () => {
     const value = e.target.value;
     setMemberSearch(value);
     setIsDropdownOpen(true);
-    
+
     // Clear selection if search doesn't match selected member
     if (formData.member_id) {
       const selectedMember = members.find(m => m.id === parseInt(formData.member_id));
@@ -156,9 +156,8 @@ const PaymentEntry = () => {
                       filteredMembers.map((member) => (
                         <div
                           key={member.id}
-                          className={`searchable-select-option ${
-                            formData.member_id === member.id.toString() ? 'selected' : ''
-                          }`}
+                          className={`searchable-select-option ${formData.member_id === member.id.toString() ? 'selected' : ''
+                            }`}
                           onClick={() => handleMemberSelect(member)}
                         >
                           <div className="option-name">{member.name}</div>

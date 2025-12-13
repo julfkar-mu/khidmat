@@ -45,6 +45,7 @@ func main() {
 	// Member routes
 	api.HandleFunc("/members", h.CreateMember).Methods("POST", "OPTIONS")
 	api.HandleFunc("/members", h.GetMembers).Methods("GET", "OPTIONS")
+	api.HandleFunc("/unpaid-members", h.GetUnpaidMembers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/members/{id}/toggle-status", h.ToggleMemberStatus).Methods("PUT", "OPTIONS")
 
 	// Payment routes
