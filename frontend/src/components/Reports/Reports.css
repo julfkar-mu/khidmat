@@ -1,3 +1,36 @@
+@font-face {
+  font-family: 'NotoSansDevanagari';
+  /* relative path from this CSS file to src/assets/fonts */
+  src: url('../../assets/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* class to force the Devanagari font when printing */
+.printable-deva {
+  font-family: 'NotoSansDevanagari', Arial, sans-serif;
+}
+
+/* small print-friendly table defaults */
+.printable-deva table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.printable-deva th,
+.printable-deva td {
+  padding: 8px;
+  border: 1px solid #ddd;
+}
+
+.printable-deva th {
+  background: #667eea;
+  color: #fff;
+  text-align: left;
+}
+
 .balance-card {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #86efac 100%);
   color: #065f46;
@@ -96,15 +129,12 @@
   .balance-stats {
     grid-template-columns: 1fr;
   }
-  
+
   .balance-card {
     padding: 24px;
   }
-  
+
   .balance-card h2 {
     font-size: 24px;
   }
 }
-
-
-

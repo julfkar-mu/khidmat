@@ -459,6 +459,283 @@ const Reports = () => {
     })();
   };
 
+  /**
+   * Open (or reuse) a window and write printable HTML that uses NotoSansDevanagari.
+   * Call window.open() synchronously in the click handler and pass the returned win
+   * into this function to avoid popup-blocking.
+   */
+  const openPrintableWindow = async (html, win = null) => {
+    if (!win) {
+      win = window.open('', '_blank', '');
+      if (!win) {
+        // caller can show a toast or fallback when this returns null
+        return null;
+      }
+    }
+
+    try {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      // wait for fonts to load (modern browsers)
+      if (win.document.fonts && win.document.fonts.ready) {
+        await win.document.fonts.ready;
+      } else {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    } catch (e) {
+      // writing to the new window can fail in some strict environments; ignore here
+    }
+
+    return win;
+  };
+
+  /**
+   * Build a small printable HTML page.
+   * - title: string page title
+   * - metaLines: array of small metadata strings
+   * - columns: array of { title } for table header
+   * - rowsHtml: pre-built string of <tr>...</tr> rows
+   */
+  const buildPrintableHtml = ({ title, metaLines = [], columns = [], rowsHtml = '', footerHtml = '' }) => {
+    const headHtml = columns.length
+      ? `<tr>${columns.map((c) => `<th>${c.title}</th>`).join('')}</tr>`
+      : '';
+
+    // Note: uses the @font-face defined in Reports.css (served from /fonts)
+    return `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8"/>
+      <title>${title}</title>
+      <style>
+        @media screen, print {
+          html,body { margin:0; padding:0; }
+        }
+        body { padding:20px; color:#222; }
+        /* reuse class defined in app CSS */
+        .printable-deva { font-family: 'NotoSansDevanagari', Arial, sans-serif; }
+        .printable-deva h1 { font-size:18px; margin-bottom:6px; }
+        .printable-deva .meta { margin-bottom:12px; font-size:13px; }
+        .printable-deva table { border-collapse: collapse; width:100%; font-size:12px; }
+        .printable-deva th, .printable-deva td { padding:8px; border:1px solid #ddd; }
+        .printable-deva th { background:#667eea; color:#fff; text-align:left; }
+        @media print { button { display:none !important; } }
+      </style>
+    </head>
+    <body>
+      <div class="printable-deva">
+        <h1>${title}</h1>
+        <div class="meta">
+          ${metaLines.map((m) => `<div>${m}</div>`).join('')}
+        </div>
+        <table>
+          <thead>${headHtml}</thead>
+          <tbody>
+            ${rowsHtml || `<tr><td colspan="${columns.length || 1}" style="text-align:center;padding:8px;">No records</td></tr>`}
+          </tbody>
+          ${footerHtml ? `<tfoot>${footerHtml}</tfoot>` : ''}
+        </table>
+      </div>
+      <script>
+        (function(){
+          // attempt to close window after printing completes
+          function tryClose() { try { window.close(); } catch(e){} }
+
+          // register afterprint where supported
+          try {
+            if (window.addEventListener) {
+              window.addEventListener('afterprint', tryClose);
+            }
+            // legacy fallback
+            if ('onafterprint' in window) window.onafterprint = tryClose;
+          } catch (e) {}
+
+          // trigger print after a short delay to allow fonts to load
+          setTimeout(function(){ try { window.focus(); window.print(); } catch(e){} }, 350);
+
+          // safety fallback: force-close after a reasonable delay
+          setTimeout(tryClose, 8000);
+        })();
+      </script>
+    </body>
+  </html>`;
+  };
+
+  // Example small helper to convert rows to html (use in your handler)
+  const rowsToHtml = (rows, mapFn) => {
+    if (!rows || !rows.length) return '';
+    return rows.map((r) => `<tr>${mapFn(r)}</tr>`).join('');
+  };
+
+  // add near other helpers (after buildPrintableHtml / rowsToHtml)
+  const makeRowsHtmlFromColumns = (rows, columns) => {
+    if (!rows || !rows.length) return '';
+    return rows
+      .map((r) =>
+        `<tr>${columns
+          .map((c) => {
+            // get value from selector fn or key
+            const val = typeof c.selector === 'function' ? c.selector(r) : r[c.selector] ?? '';
+            return `<td style="padding:8px;border:1px solid #ddd;">${val ?? ''}</td>`;
+          })
+          .join('')}</tr>`
+      )
+      .join('');
+  };
+
+  // generic exporter that must be invoked from a click handler synchronously opening a window
+  const exportTableToPdfViaPrint = async ({ title, metaLines = [], columns = [], rows = [] }, preOpenedWin) => {
+    const rowsHtml = makeRowsHtmlFromColumns(rows, columns);
+    const footerHtml = ''; // optionally build footer
+    const html = buildPrintableHtml({ title, metaLines, columns: columns.map(c => ({ title: c.name })), rowsHtml, footerHtml });
+
+    // If caller provided a pre-opened window (must be opened synchronously in click handler),
+    // navigate it to a blob URL containing the printable HTML. This is more reliable than
+    // async document.write in some browsers/extensions.
+    if (preOpenedWin) {
+      try {
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        // navigate the new window to the blob URL
+        preOpenedWin.location.href = url;
+
+        // wait for the new window to load the blob URL (or fallback after a short delay)
+        await new Promise((resolve) => {
+          let resolved = false;
+          const onLoad = () => {
+            if (resolved) return;
+            resolved = true;
+            resolve();
+          };
+          try {
+            preOpenedWin.addEventListener('load', onLoad, { once: true });
+          } catch (e) {
+            // if addEventListener fails, fall back to timeout
+          }
+          // fallback
+          setTimeout(() => onLoad(), 900);
+        });
+
+        // free object URL after short delay so print can load resources
+        setTimeout(() => {
+          try { URL.revokeObjectURL(url); } catch (e) { }
+        }, 5000);
+
+        return preOpenedWin;
+      } catch (err) {
+        // fallback to writing into the preOpenedWin (best-effort)
+        try {
+          preOpenedWin.document.open();
+          preOpenedWin.document.write(html);
+          preOpenedWin.document.close();
+        } catch (e) {
+          // ignore
+        }
+        return preOpenedWin;
+      }
+    }
+
+    // No pre-opened window: open normally (synchronous open required by caller)
+    const win = window.open('', '_blank', '');
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return null;
+    }
+    await openPrintableWindow(html, win);
+    return win;
+  };
+
+  // convenience wrappers to call from your buttons (open window synchronously here)
+  const exportMonthlyCollectionPdf = (ev) => {
+    // open synchronously in click handler
+    const win = window.open('', '_blank', '');
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return;
+    }
+
+    // write small placeholder synchronously so the browser treats this as a user-opened window
+    try {
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Preparing PDF</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#222}</style></head><body><h2>Preparing PDF…</h2><p>Please wait.</p></body></html>`);
+      win.document.close();
+    } catch (e) {
+      // ignore write errors
+    }
+
+    const monthLabel = selectedMonth || new Date().toISOString().slice(0, 7);
+    const meta = [`Month: ${monthLabel}`, `Total Collection: Rs. ${monthlyCollectionTotal.toFixed(2)}`];
+
+    // async work writes the final HTML and triggers print
+    exportTableToPdfViaPrint({
+      title: 'Monthly Collection Report',
+      metaLines: meta,
+      columns: monthlyCollectionDetailsColumns,
+      rows: monthlyCollectionDetails,
+    }, win);
+  };
+
+  const exportMonthlyDonationPdf = () => {
+    const win = window.open('', '_blank', '');
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return;
+    }
+
+    try {
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Preparing PDF</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#222}</style></head><body><h2>Preparing PDF…</h2><p>Please wait.</p></body></html>`);
+      win.document.close();
+    } catch (e) { }
+
+    const monthLabel = selectedDonationMonth || new Date().toISOString().slice(0, 7);
+    const meta = [`Month: ${monthLabel}`, `Total Donation: Rs. ${monthlyDonationTotal.toFixed(2)}`];
+
+    exportTableToPdfViaPrint({
+      title: 'Monthly Donation Report',
+      metaLines: meta,
+      columns: monthlyDonationDetailsColumns,
+      rows: monthlyDonationDetails,
+    }, win);
+  };
+
+  const exportPaidMembersPdf = () => {
+    const win = window.open('', '_blank', '');
+    if (!win) { toast.error('Popup blocked. Allow popups to print/download PDF.'); return; }
+
+    const filteredData = paidMembers.filter(item =>
+      item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+      item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+      item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
+    );
+
+    exportTableToPdfViaPrint({
+      title: 'Paid Members Report',
+      metaLines: [`Total Paid Members: ${filteredData.length}`],
+      columns: paidMembersColumns,
+      rows: filteredData,
+    }, win);
+  };
+
+  const exportUnpaidMembersPdf = () => {
+    const win = window.open('', '_blank', '');
+    if (!win) { toast.error('Popup blocked. Allow popups to print/download PDF.'); return; }
+
+    const filteredData = unpaidMembers.filter(item =>
+      item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+      item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+      item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
+    );
+
+    exportTableToPdfViaPrint({
+      title: 'Unpaid Members Report',
+      metaLines: [`Total Unpaid Members: ${filteredData.length}`],
+      columns: unpaidMembersColumns,
+      rows: filteredData,
+    }, win);
+  };
+
   return (
     <Layout>
       <div className="container">
@@ -496,7 +773,7 @@ const Reports = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
             <h2 style={{ margin: 0 }}>Paid Members Report (Current Month)</h2>
             <button
-              onClick={handleDownloadPaidMembersPDF}
+              onClick={exportPaidMembersPdf}
               className="btn btn-primary"
               disabled={paidMembersLoading || paidMembers.length === 0}
               style={{ whiteSpace: 'nowrap' }}
@@ -540,7 +817,7 @@ const Reports = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
             <h2 style={{ margin: 0 }}>Unpaid Members Report (Current Month)</h2>
             <button
-              onClick={handleDownloadUnpaidMembersPDF}
+              onClick={exportUnpaidMembersPdf}
               className="btn btn-primary"
               disabled={unpaidMembersLoading || unpaidMembers.length === 0}
               style={{ whiteSpace: 'nowrap' }}
@@ -616,7 +893,7 @@ const Reports = () => {
                 ))}
               </select>
               <button
-                onClick={handleDownloadPDF}
+                onClick={exportMonthlyCollectionPdf}
                 className="btn btn-primary"
                 disabled={detailsLoading || monthlyCollectionDetails.length === 0}
                 style={{ whiteSpace: 'nowrap' }}
@@ -710,7 +987,7 @@ const Reports = () => {
                 ))}
               </select>
               <button
-                onClick={handleDownloadDonationPDF}
+                onClick={exportMonthlyDonationPdf}
                 className="btn btn-primary"
                 disabled={donationDetailsLoading || monthlyDonationDetails.length === 0}
                 style={{ whiteSpace: 'nowrap' }}

@@ -1,0 +1,685 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'react-toastify';
+import api from '../../services/api';
+import Layout from '../Layout/Layout';
+import DataTable from 'react-data-table-component';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import './Reports.css';
+
+const Reports = () => {
+  const [paidMembers, setPaidMembers] = useState([]);
+  const [unpaidMembers, setUnpaidMembers] = useState([]);
+  const [monthlyCollection, setMonthlyCollection] = useState([]);
+  const [monthlyDonations, setMonthlyDonations] = useState([]);
+  const [poolBalance, setPoolBalance] = useState(null);
+  const [monthlyCollectionDetails, setMonthlyCollectionDetails] = useState([]);
+  const [monthlyCollectionTotal, setMonthlyCollectionTotal] = useState(0);
+  const [monthlyDonationDetails, setMonthlyDonationDetails] = useState([]);
+  const [monthlyDonationTotal, setMonthlyDonationTotal] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedDonationMonth, setSelectedDonationMonth] = useState('');
+  const [filterText, setFilterText] = useState('');
+  const [donationFilterText, setDonationFilterText] = useState('');
+  const [paidFilterText, setPaidFilterText] = useState('');
+  const [unpaidFilterText, setUnpaidFilterText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [donationDetailsLoading, setDonationDetailsLoading] = useState(false);
+  const [paidMembersLoading, setPaidMembersLoading] = useState(false);
+  const [unpaidMembersLoading, setUnpaidMembersLoading] = useState(false);
+
+  const fetchMonthlyCollectionDetails = useCallback(async (month = '') => {
+    setDetailsLoading(true);
+    try {
+      const url = month
+        ? `/reports/monthly-collection-details?month=${month}`
+        : '/reports/monthly-collection-details';
+      const response = await api.get(url);
+      setMonthlyCollectionDetails(response.data.details || []);
+      setMonthlyCollectionTotal(response.data.total || 0);
+      setSelectedMonth((prev) => (!prev && response.data.month ? response.data.month : prev));
+    } catch (error) {
+      toast.error('Failed to fetch monthly collection details');
+      setMonthlyCollectionDetails([]);
+      setMonthlyCollectionTotal(0);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, []);
+
+  const fetchMonthlyDonationDetails = useCallback(async (month = '') => {
+    setDonationDetailsLoading(true);
+    try {
+      const url = month
+        ? `/reports/monthly-donation-details?month=${month}`
+        : '/reports/monthly-donation-details';
+      const response = await api.get(url);
+      setMonthlyDonationDetails(response.data.details || []);
+      setMonthlyDonationTotal(response.data.total || 0);
+      setSelectedDonationMonth((prev) => (!prev && response.data.month ? response.data.month : prev));
+    } catch (error) {
+      toast.error('Failed to fetch monthly donation details');
+      setMonthlyDonationDetails([]);
+      setMonthlyDonationTotal(0);
+    } finally {
+      setDonationDetailsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+    fetchPaidMembers();
+    fetchUnpaidMembers();
+    fetchMonthlyCollectionDetails();
+    fetchMonthlyDonationDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchMonthlyCollectionDetails(selectedMonth || '');
+  }, [selectedMonth, fetchMonthlyCollectionDetails]);
+
+  useEffect(() => {
+    fetchMonthlyDonationDetails(selectedDonationMonth || '');
+  }, [selectedDonationMonth, fetchMonthlyDonationDetails]);
+
+  const fetchReports = async () => {
+    try {
+      const [monthlyCollectionRes, monthlyDonationsRes, poolBalanceRes] = await Promise.all([
+        api.get('/reports/monthly-collection'),
+        api.get('/reports/monthly-donations'),
+        api.get('/reports/pool-balance'),
+      ]);
+
+      setMonthlyCollection(monthlyCollectionRes.data || []);
+      setMonthlyDonations(monthlyDonationsRes.data || []);
+      setPoolBalance(poolBalanceRes.data);
+    } catch (error) {
+      toast.error('Failed to fetch reports');
+      // Ensure arrays are set to empty arrays even on error
+      setMonthlyCollection([]);
+      setMonthlyDonations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPaidMembers = async () => {
+    setPaidMembersLoading(true);
+    try {
+      const response = await api.get('/reports/paid-members');
+      setPaidMembers(response.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch paid members report');
+      setPaidMembers([]);
+    } finally {
+      setPaidMembersLoading(false);
+    }
+  };
+
+  const fetchUnpaidMembers = async () => {
+    setUnpaidMembersLoading(true);
+    try {
+      const response = await api.get('/reports/unpaid-members');
+      setUnpaidMembers(response.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch unpaid members report');
+      setUnpaidMembers([]);
+    } finally {
+      setUnpaidMembersLoading(false);
+    }
+  };
+
+
+  const paidMembersColumns = [
+    {
+      name: 'Member Name',
+      selector: (row) => row.member_name,
+      sortable: true,
+      wrap: true,
+    },
+    {
+      name: 'Mobile No',
+      selector: (row) => row.mobile_no,
+      sortable: true,
+    },
+    {
+      name: 'Paid Amount',
+      selector: (row) => `₹${row.paid_amount.toFixed(2)}`,
+      sortable: true,
+      right: true,
+    },
+    {
+      name: 'Payment Date',
+      selector: (row) => row.payment_date,
+      sortable: true,
+    },
+    {
+      name: 'Account Admin',
+      selector: (row) => row.admin_name,
+      sortable: true,
+    },
+  ];
+
+  const unpaidMembersColumns = [
+    {
+      name: 'Member Name',
+      selector: (row) => row.member_name,
+      sortable: true,
+      wrap: true,
+    },
+    {
+      name: 'Mobile No',
+      selector: (row) => row.mobile_no,
+      sortable: true,
+    },
+    {
+      name: 'Account Admin',
+      selector: (row) => row.admin_name,
+      sortable: true,
+    },
+  ];
+
+  const monthlyCollectionColumns = [
+    {
+      name: 'Month',
+      selector: (row) => row.month,
+      sortable: true,
+    },
+    {
+      name: 'Total Collection',
+      selector: (row) => `₹${row.total.toFixed(2)}`,
+      sortable: true,
+    },
+  ];
+
+  const monthlyDonationsColumns = [
+    {
+      name: 'Month',
+      selector: (row) => row.month,
+      sortable: true,
+    },
+    {
+      name: 'Total Donations',
+      selector: (row) => `₹${row.total.toFixed(2)}`,
+      sortable: true,
+    },
+  ];
+
+  const monthlyCollectionDetailsColumns = [
+    {
+      name: 'Member Name',
+      selector: (row) => row.member_name,
+      sortable: true,
+      wrap: true,
+    },
+    {
+      name: 'Contact No',
+      selector: (row) => row.contact_no,
+      sortable: true,
+    },
+    {
+      name: 'Amount',
+      selector: (row) => `₹${row.amount.toFixed(2)}`,
+      sortable: true,
+      right: true,
+    },
+    {
+      name: 'Account Admin',
+      selector: (row) => row.admin_name,
+      sortable: true,
+    },
+    {
+      name: 'Payment Date',
+      selector: (row) => row.payment_date,
+      sortable: true,
+    },
+  ];
+
+  const monthlyDonationDetailsColumns = [
+    {
+      name: 'Beneficiary Name',
+      selector: (row) => row.beneficiary_name,
+      sortable: true,
+      wrap: true,
+    },
+    {
+      name: 'Contact No',
+      selector: (row) => row.contact_no,
+      sortable: true,
+    },
+    {
+      name: 'Amount',
+      selector: (row) => `₹${row.amount.toFixed(2)}`,
+      sortable: true,
+      right: true,
+    },
+    {
+      name: 'Account Admin',
+      selector: (row) => row.admin_name,
+      sortable: true,
+    },
+    {
+      name: 'Donation Date',
+      selector: (row) => row.donation_date,
+      sortable: true,
+    },
+  ];
+
+  // Helper to convert ArrayBuffer -> base64
+  const arrayBufferToBase64 = (buffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  };
+
+  // Load Devanagari font into jsPDF instance (expects font file at /fonts/...)
+  const loadDevaFontToDoc = async (doc) => {
+    try {
+      // Fetch font from public folderMANGAL.TTF
+      const res = await fetch('/fonts/NotoSansDevanagari-Regular.ttf');
+      //const res = await fetch('/fonts/Mangal/MANGAL.TTF');
+      if (!res.ok) return;
+      const ab = await res.arrayBuffer();
+      const b64 = arrayBufferToBase64(ab);
+      // filename used in VFS must match when adding font
+      const vfsName = 'NotoSansDevanagari-Regular.ttf';
+      doc.addFileToVFS(vfsName, b64);
+      doc.addFont(vfsName, 'NotoSansDevanagari', 'normal');
+      doc.setFont('NotoSansDevanagari');
+    } catch (err) {
+      // silently fail — fallback to default font
+      console.warn('Could not load Devanagari font for PDF:', err);
+    }
+  };
+
+  // Replace jsPDF exporters with HTML-print approach so browser does complex-script shaping
+  // If `win` is provided it will reuse that pre-opened window (must be opened synchronously
+  // from the click handler to avoid popup blocking).
+  const openPrintableWindow = async (html, win = null) => {
+    if (!win) {
+      win = window.open('', '_blank', 'noopener,noreferrer');
+      if (!win) {
+        toast.error('Popup blocked. Allow popups to print/download PDF.');
+        return null;
+      }
+    }
+
+    // Write & close synchronously
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+
+    try {
+      if (win.document.fonts && win.document.fonts.ready) {
+        await win.document.fonts.ready;
+      } else {
+        // small fallback delay for older browsers
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return win;
+  };
+
+  const makeTableRowsHtml = (rows, columns) => {
+    if (!rows || rows.length === 0) return `<tr><td colspan="${columns.length}" style="padding:8px;text-align:center;">No records</td></tr>`;
+    return rows.map(r => `<tr>${columns.map(c => `<td style="padding:8px;border:1px solid #ddd;">${c.cell(r)}</td>`).join('')}</tr>`).join('');
+  };
+
+  const handleDownloadPDF = () => {
+    // open window synchronously inside click handler to avoid popup blocking
+    let win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      // try anchor click fallback (some browsers allow this)
+      const a = document.createElement('a');
+      a.href = 'about:blank';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      win = window.open('', '_blank', 'noopener,noreferrer');
+    }
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return;
+    }
+
+    // write a small placeholder so the user sees the new tab is preparing the PDF
+    try {
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Preparing PDF</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#222}</style></head><body><h2>Preparing PDF…</h2><p>Please wait.</p></body></html>`);
+      win.document.close();
+    } catch (e) {
+      // ignore write errors
+    }
+
+    (async (preOpenedWin) => {
+      const monthLabel = selectedMonth || new Date().toISOString().slice(0, 7);
+      const total = monthlyCollectionTotal.toFixed(2);
+
+      const columns = [
+        { title: 'Member Name', cell: (i) => i.member_name || '' },
+        { title: 'Contact No', cell: (i) => i.contact_no || '' },
+        { title: 'Amount', cell: (i) => `Rs. ${Number(i.amount || 0).toFixed(2)}` },
+        { title: 'Account Admin', cell: (i) => i.admin_name || '' },
+        { title: 'Payment Date', cell: (i) => i.payment_date || '' },
+      ];
+
+      const rowsHtml = makeTableRowsHtml(monthlyCollectionDetails, columns);
+      const headHtml = `<tr>${columns.map(c => `<th style="padding:8px;border:1px solid #ddd;background:#667eea;color:#fff;text-align:left;">${c.title}</th>`).join('')}</tr>`;
+
+      const html = `
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8"/>
+            <title>Monthly Collection ${monthLabel}</title>
+            <style>
+              @font-face {
+                font-family: 'NotoSansDevanagari';
+                src: url('/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+                font-display: swap;
+              }
+              body { font-family: 'NotoSansDevanagari', Arial, sans-serif; margin:20px; color:#222; }
+              h1 { font-size:20px; margin-bottom:6px; }
+              .meta { margin-bottom:16px; font-size:14px; }
+              table { border-collapse: collapse; width:100%; font-size:12px; }
+              th, td { padding:8px; border:1px solid #ddd; }
+              th { background:#667eea; color:#fff; text-align:left; }
+              tfoot td { font-weight:bold; }
+              @media print { button { display:none; } }
+            </style>
+          </head>
+          <body>
+            <h1>Monthly Collection Report</h1>
+            <div class="meta">
+              <div>Month: ${monthLabel}</div>
+              <div>Total Collection: Rs. ${total}</div>
+            </div>
+            <table>
+              <thead>${headHtml}</thead>
+              <tbody>${rowsHtml}</tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2"></td>
+                  <td style="text-align:right;">Rs. ${total}</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+            <script>
+              // auto-trigger print dialog
+              setTimeout(() => { try { window.focus(); window.print(); } catch(e){} }, 300);
+            </script>
+          </body>
+        </html>
+      `;
+
+      await openPrintableWindow(html, preOpenedWin);
+    })(win);
+  };
+
+  const handleDownloadDonationPDF = () => {
+    let win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      const a = document.createElement('a');
+      a.href = 'about:blank';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      win = window.open('', '_blank', 'noopener,noreferrer');
+    }
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return;
+    }
+    try {
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Preparing PDF</title></head><body><h2>Preparing PDF…</h2></body></html>`);
+      win.document.close();
+    } catch (e) { }
+    (async (preOpenedWin) => {
+      const monthLabel = selectedDonationMonth || new Date().toISOString().slice(0, 7);
+      const total = monthlyDonationTotal.toFixed(2);
+
+      const columns = [
+        { title: 'Beneficiary Name', cell: (i) => i.beneficiary_name || '' },
+        { title: 'Contact No', cell: (i) => i.contact_no || '' },
+        { title: 'Amount', cell: (i) => `Rs. ${Number(i.amount || 0).toFixed(2)}` },
+        { title: 'Account Admin', cell: (i) => i.admin_name || '' },
+        { title: 'Donation Date', cell: (i) => i.donation_date || '' },
+      ];
+
+      const rowsHtml = makeTableRowsHtml(monthlyDonationDetails, columns);
+      const headHtml = `<tr>${columns.map(c => `<th style="padding:8px;border:1px solid #ddd;background:#667eea;color:#fff;text-align:left;">${c.title}</th>`).join('')}</tr>`;
+
+      const html = `
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8"/>
+            <title>Monthly Donation ${monthLabel}</title>
+            <style>
+              @font-face {
+                font-family: 'NotoSansDevanagari';
+                src: url('/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+                font-display: swap;
+              }
+              body { font-family: 'NotoSansDevanagari', Arial, sans-serif; margin:20px; color:#222; }
+              table { border-collapse: collapse; width:100%; font-size:12px; }
+              th, td { padding:8px; border:1px solid #ddd; }
+              th { background:#667eea; color:#fff; text-align:left; }
+              @media print { button { display:none; } }
+            </style>
+          </head>
+          <body>
+            <h1>Monthly Donation Report</h1>
+            <div class="meta">
+              <div>Month: ${monthLabel}</div>
+              <div>Total Donation: Rs. ${total}</div>
+            </div>
+            <table>
+              <thead>${headHtml}</thead>
+              <tbody>${rowsHtml}</tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2"></td>
+                  <td style="text-align:right;">Rs. ${total}</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+            <script>
+              setTimeout(() => { try { window.focus(); window.print(); } catch(e){} }, 300);
+            </script>
+          </body>
+        </html>
+      `;
+
+      await openPrintableWindow(html, preOpenedWin);
+    })(win);
+  };
+
+  const handleDownloadPaidMembersPDF = () => {
+    let win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      const a = document.createElement('a');
+      a.href = 'about:blank';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      win = window.open('', '_blank', 'noopener,noreferrer');
+    }
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return;
+    }
+    try {
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Preparing PDF</title></head><body><h2>Preparing PDF…</h2></body></html>`);
+      win.document.close();
+    } catch (e) { }
+    (async (preOpenedWin) => {
+      const monthLabel = new Date().toISOString().slice(0, 7);
+      const filteredData = paidMembers.filter(item =>
+        item.member_name?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+        item.mobile_no?.toLowerCase().includes(paidFilterText.toLowerCase()) ||
+        item.admin_name?.toLowerCase().includes(paidFilterText.toLowerCase())
+      );
+      const totalAmount = filteredData.reduce((sum, item) => sum + (item.paid_amount || 0), 0).toFixed(2);
+
+      const columns = [
+        { title: 'Member Name', cell: (i) => i.member_name || '' },
+        { title: 'Mobile No', cell: (i) => i.mobile_no || '' },
+        { title: 'Paid Amount', cell: (i) => `Rs. ${Number(i.paid_amount || 0).toFixed(2)}` },
+        { title: 'Payment Date', cell: (i) => i.payment_date || '' },
+        { title: 'Account Admin', cell: (i) => i.admin_name || '' },
+      ];
+
+      const rowsHtml = makeTableRowsHtml(filteredData, columns);
+      const headHtml = `<tr>${columns.map(c => `<th style="padding:8px;border:1px solid #ddd;background:#667eea;color:#fff;text-align:left;">${c.title}</th>`).join('')}</tr>`;
+
+      const html = `
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8"/>
+            <title>Paid Members ${monthLabel}</title>
+            <style>
+              @font-face {
+                font-family: 'NotoSansDevanagari';
+                src: url('/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+                font-display: swap;
+              }
+              body { font-family: 'NotoSansDevanagari', Arial, sans-serif; margin:20px; color:#222; }
+              table { border-collapse: collapse; width:100%; font-size:12px; }
+              th, td { padding:8px; border:1px solid #ddd; }
+              th { background:#667eea; color:#fff; text-align:left; }
+              @media print { button { display:none; } }
+            </style>
+          </head>
+          <body>
+            <h1>Paid Members Report</h1>
+            <div class="meta">
+              <div>Month: ${monthLabel}</div>
+              <div>Total Paid Members: ${filteredData.length}</div>
+              <div>Total Amount: Rs. ${totalAmount}</div>
+            </div>
+            <table>
+              <thead>${headHtml}</thead>
+              <tbody>${rowsHtml}</tbody>
+              <tfoot>
+                <tr><td colspan="2"></td><td style="text-align:right;">Rs. ${totalAmount}</td><td colspan="2"></td></tr>
+              </tfoot>
+            </table>
+            <script>
+              setTimeout(() => { try { window.focus(); window.print(); } catch(e){} }, 300);
+            </script>
+          </body>
+        </html>
+      `;
+
+      await openPrintableWindow(html, preOpenedWin);
+    })(win);
+  };
+
+  const handleDownloadUnpaidMembersPDF = () => {
+    let win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      const a = document.createElement('a');
+      a.href = 'about:blank';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      win = window.open('', '_blank', 'noopener,noreferrer');
+    }
+    if (!win) {
+      toast.error('Popup blocked. Allow popups to print/download PDF.');
+      return;
+    }
+    try {
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Preparing PDF</title></head><body><h2>Preparing PDF…</h2></body></html>`);
+      win.document.close();
+    } catch (e) { }
+    (async (preOpenedWin) => {
+      const monthLabel = new Date().toISOString().slice(0, 7);
+      const filteredData = unpaidMembers.filter(item =>
+        item.member_name?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+        item.mobile_no?.toLowerCase().includes(unpaidFilterText.toLowerCase()) ||
+        item.admin_name?.toLowerCase().includes(unpaidFilterText.toLowerCase())
+      );
+
+      const columns = [
+        { title: 'Member Name', cell: (i) => i.member_name || '' },
+        { title: 'Mobile No', cell: (i) => i.mobile_no || '' },
+        { title: 'Account Admin', cell: (i) => i.admin_name || '' },
+      ];
+
+      const rowsHtml = makeTableRowsHtml(filteredData, columns);
+      const headHtml = `<tr>${columns.map(c => `<th style="padding:8px;border:1px solid #ddd;background:#667eea;color:#fff;text-align:left;">${c.title}</th>`).join('')}</tr>`;
+
+      const html = `
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8"/>
+            <title>Unpaid Members ${monthLabel}</title>
+            <style>
+              @font-face {
+                font-family: 'NotoSansDevanagari';
+                src: url('/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+                font-display: swap;
+              }
+              body { font-family: 'NotoSansDevanagari', Arial, sans-serif; margin:20px; color:#222; }
+              table { border-collapse: collapse; width:100%; font-size:12px; }
+              th, td { padding:8px; border:1px solid #ddd; }
+              th { background:#667eea; color:#fff; text-align:left; }
+              @media print { button { display:none; } }
+            </style>
+          </head>
+          <body>
+            <h1>Unpaid Members Report</h1>
+            <div class="meta">
+              <div>Month: ${monthLabel}</div>
+              <div>Total Unpaid Members: ${filteredData.length}</div>
+            </div>
+            <table>
+              <thead>${headHtml}</thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+            <script>
+              setTimeout(() => { try { window.focus(); window.print(); } catch(e){} }, 300);
+            </script>
+          </body>
+        </html>
+      `;
+
+      await openPrintableWindow(html, preOpenedWin);
+    })(win);
+  };
+
+
