@@ -1,25 +1,19 @@
-# Diagram Re-creation
-
-Here is the redrawn diagram based on the attached image, using Mermaid.js state diagram syntax.
-
-```mermaid
 stateDiagram-v2
-    direction TB
 
     state Happy_Path {
-        [*] --> NewState : Return created in Stratos
+        [*] --> new
         
-        note right of NewState
+        note right of new
             The diagram illustrates the happy path
             for a standard return process in Stratos.
-            
+
             Replacement returns only have
-            "new" and "completeSuccessful"
+            "new" and "completeSuccessful".
         end note
 
-        NewState --> InitiatedState : Return created with\nSupply Chain
-        
-        note right of NewState
+        new --> initiated : Return created in Stratos
+
+        note right of initiated
             The eClaims is called if the
             return does not have the
             eClaims ID. The eClaims ID
@@ -27,96 +21,96 @@ stateDiagram-v2
             to receive the initiated state.
         end note
 
-        InitiatedState --> ProcessingState : carrier request
+        initiated --> processing : Return created with Supply Chain
         
-        note right of InitiatedState
-            Receive the wRmaNumber (RMA)
-            in the initiated payload.
-        end note
+        %% Global Refurb returns - Dotted line from processing back to initiated?
+        %% The image shows a dotted line curving back.
+        processing -.-> initiated : Global Refurb returns
 
-        state ProcessingState {
-            %% Internal logic or just a state
-        }
-        
-        note right of ProcessingState
+        note right of processing
+            The automatic timeout will occur if the
+            return has a "timeoutInDays" value.
+
+            If "timeoutInDays" is null, the return
+            will never change to a timeout state
+            automatically.
+            
+            (Note: This text actually belongs to timeout, correcting based on image positions)
+            
             The creation of the shipping label
             (FedEx call) is created only after
-            the fulfillment is delivered.
-            If the fulfillment fails, the
+            the fullfillment is delivered.
+            If the fullfillment fails, the
             return will be completeSuccessful.
-            
+
             Chain of information to generate
             Shipping Label (by calling FedEx):
             
-            Fulfillment Invoice -> eClaims ID ->
-            RMA (wRmaNumber) -> Shipping Label
-            
+            Fullfillment Invoice -> eClaims ID ->
+            RMA (refReturnNumber) -> Shipping Label
+
             Timeout is checked only in
             processing state.
         end note
-        
-        %% Transitions from ProcessingState
-        
-        ProcessingState --> TimeoutState : Hardware not received\nwithin X days
-        ProcessingState --> ItemReceivedState : Hardware received\nin sorting center
-        ProcessingState --> ReturnCancelledState : Return is\ncancelled
 
-        %% Timeout Sub-state
-        state TimeoutState {
-            [*] --> timeout
+        processing --> ItemReceived : Hardware received in sorting center
+        
+        %% ReturnCanceled Group
+        state ReturnCanceled {
+             [*] --> canceled
+             note right of canceled
+                [Waiton in Progress]
+                Automatic cancellation if the
+                Fullfillment is undelivered
+                or lost in transit, and no
+                shipping label is created.
+             end note
+        }
+        
+        initiated --> canceled : If return is cancelled
+        processing --> canceled : If return is cancelled
+
+        state ItemReceived {
+            %% Just a state label for visualization if needed, but here it acts as a state
+        }
+        
+        ItemReceived --> completeSuccessful : If return does not need hardware validation
+        ItemReceived --> completeUnsuccessful : If return needs hardware validation and fail
+        ItemReceived --> completeSuccessful : If return needs hardware validation and success
+
+
+        %% Timeout Group
+        state Timeout {
+            timeout --> completeTimeout : Item received after timeout
             
             note left of timeout
                 The automatic timeout will occur if the
-                return has a "timeoutDays" value.
-                
-                If "timeoutDays" is null, the return
+                return has a "timeoutInDays" value.
+
+                If "timeoutInDays" is null, the return
                 will never change to a timeout state
                 automatically.
-                
+
                 The automatic timeout will change the
                 status from processing to timeout if
-                the "timeoutDays" is greater than
-                the age of return (use the new date
+                the "timeoutInDays" is greater than
+                the age of return (use the new state
                 to calculate the age).
-                
-                The timeout event trigger returns flow.
-            end note
 
-            timeout --> completeTimeout : Item received\nafter timeout
-            timeout --> completeUnsuccessful : Item received
-        }
-
-        %% ItemReceived Sub-state
-        state ItemReceivedState {
-            [*] --> itemReceived
-            
-            itemReceived --> completeSuccessful : If return does not\nneed hardware validation
-            itemReceived --> completeSuccessful : If return needs hardware\nvalidation and succeeds
-            itemReceived --> completeUnsuccessful : If return needs hardware\nvalidation and fail
-        }
-
-        %% ReturnCancelled Sub-state
-        state ReturnCancelledState {
-            [*] --> cancelled
-            
-            note right of cancelled
-               (Wait on Progress)
-               Automatic cancellation if the
-               Fulfillment is undelivered
-               or lost in transit, and no
-               shipping label is created.
-            end note
-
-            note left of cancelled
-                When receiving "statusComplete" from S4, it will
-                be translated to "completeSuccessful" or
-                "completeUnsuccessful" based whether the SKU and
-                SN match the expected ones.
-                
-                Returns related to cancellation after the remorse
-                period (30 days) do not have the "statusComplete"
-                from S4. The latest state will be "returnIncomplete".
+                The timeout event trigger returns here.
             end note
         }
+        
+        processing --> timeout : Hardware not received within X days
     }
-```
+    
+    note bottom of Happy_Path
+        When receiving "statusComplete" from S4, it will
+        be translated to "completeSuccessful" or
+        "completeUnsuccessful" based whether the SKU and
+        SN match the expected ones.
+
+        Returns related to cancellation after the coverage
+        period (30 days) do not have the "statusComplete"
+        from S4. The latest state will be "ItemReceived".
+    end note
